@@ -7,7 +7,6 @@
 <title>شارع الثلاثين - نظام الإدارة</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script>
 tailwind.config = {
@@ -25,6 +24,13 @@ body { font-family: 'Cairo', sans-serif; }
 input, select { outline: none; }
 button { transition: .2s; }
 .logo-box { width: 40px; height: 40px; background: #0f172a; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 18px; }
+
+@media print {
+  body * { visibility: hidden; }
+  #printModalArea, #printModalArea * { visibility: visible; }
+  #printModalArea { position: fixed; top: 0; right: 0; width: 100%; height: 100%; background: white; padding: 20px; }
+  .no-print { display: none !important; }
+}
 </style>
 </head>
 
@@ -207,7 +213,6 @@ function logout() {
 
 async function loadData() {
   try {
-    // 1. الشركاء وحساب الرصيد العام من مجموع "المتبقي" للشركاء
     let partnersData = await db.from("partners").select("*").order("id");
     let partnersContainer = document.getElementById("partners");
     partnersContainer.innerHTML = "";
@@ -232,10 +237,8 @@ async function loadData() {
       partnersContainer.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">لا يوجد شركاء مسجلين</td></tr>`;
     }
 
-    // عرض الرصيد العام كمجموع المتبقي للشركاء
     document.getElementById("balance").innerText = totalRemainingBalance.toLocaleString() + " $";
 
-    // 2. المشروع
     let project = await db.from("project_info").select("*").limit(1).single();
     if (project.data) {
       let prog = project.data.progress || 0;
@@ -244,7 +247,6 @@ async function loadData() {
       document.getElementById("blueprint").href = project.data.blueprint_url || "#";
     }
 
-    // 3. الفواتير
     let invoicesData = await db.from("invoices").select("*").order("id", { ascending: false });
     let invoicesContainer = document.getElementById("invoices");
     invoicesContainer.innerHTML = "";
@@ -274,7 +276,6 @@ async function loadData() {
   }
 }
 
-// إضافة رصيد (للمتبقي) لشريك محدد
 async function addPartnerBalance(id, name) {
   let val = prompt("أدخل المبلغ المراد إضافته إلى رصيد المتبقي للشريك " + name + ":");
   if (!val || isNaN(val)) return;
@@ -295,7 +296,6 @@ async function addPartnerBalance(id, name) {
   loadData();
 }
 
-// إضافة مصروف وخصمه بالتساوي من "المتبقي" لكل الشركاء
 document.getElementById("expenseForm").addEventListener("submit", async e => {
   e.preventDefault();
   let reason = document.getElementById("reason").value;
@@ -303,14 +303,12 @@ document.getElementById("expenseForm").addEventListener("submit", async e => {
   let recipient = document.getElementById("recipient").value;
   let date = new Date().toISOString().split("T")[0];
 
-  // 1. حفظ الفاتورة
   let insert = await db.from("invoices").insert([{ reason, amount, recipient, date }]);
   if (insert.error) {
     alert("خطأ: " + insert.error.message);
     return;
   }
 
-  // 2. خصم المبلغ بالتساوي من "المتبقي" للشركاء
   let partnersRes = await db.from("partners").select("*");
   let partners = partnersRes.data || [];
   if (partners.length > 0) {
@@ -326,7 +324,6 @@ document.getElementById("expenseForm").addEventListener("submit", async e => {
   loadData();
 });
 
-// تحديث نسبة الإنجاز فقط
 document.getElementById("projectForm").addEventListener("submit", async e => {
   e.preventDefault();
   let progress = Number(document.getElementById("projectProgress").value);
@@ -342,7 +339,6 @@ document.getElementById("projectForm").addEventListener("submit", async e => {
   loadData();
 });
 
-// حذف فاتورة وإرجاع قيمتها لـ "المتبقي" بالتساوي
 async function deleteInvoice(id, amount) {
   if (!confirm("هل أنت متأكد من حذف هذه الفاتورة؟ سيتم إعادة المبلغ إلى رصيد المتبقي للشركاء.")) return;
   
@@ -365,7 +361,6 @@ async function deleteInvoice(id, amount) {
   loadData();
 }
 
-// تحميل PDF احترافي مع الشعار (متوافق مع الهواتف)
 async function downloadPDF(id) {
   let result = await db.from("invoices").select("*").eq("id", id).single();
   if (!result.data) {
@@ -374,70 +369,108 @@ async function downloadPDF(id) {
   }
 
   let inv = result.data;
-  let pdfElement = document.createElement("div");
-  
-  pdfElement.style.position = "fixed";
-  pdfElement.style.top = "0";
-  pdfElement.style.right = "0";
-  pdfElement.style.zIndex = "99999";
-  pdfElement.style.padding = "40px";
-  pdfElement.style.fontFamily = "Cairo, sans-serif";
-  pdfElement.style.direction = "rtl";
-  pdfElement.style.background = "#ffffff";
-  pdfElement.style.color = "#0f172a";
-  pdfElement.style.width = "750px";
-  
-  pdfElement.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 20px;">
+  let modalOverlay = document.createElement("div");
+  modalOverlay.style.position = "fixed";
+  modalOverlay.style.inset = "0";
+  modalOverlay.style.background = "rgba(0, 0, 0, 0.8)";
+  modalOverlay.style.zIndex = "99999";
+  modalOverlay.style.display = "flex";
+  modalOverlay.style.flexDirection = "column";
+  modalOverlay.style.alignItems = "center";
+  modalOverlay.style.justifyContent = "center";
+  modalOverlay.style.padding = "20px";
+  modalOverlay.style.overflowY = "auto";
+
+  let receiptBox = document.createElement("div");
+  receiptBox.id = "printModalArea";
+  receiptBox.style.background = "#ffffff";
+  receiptBox.style.color = "#0f172a";
+  receiptBox.style.padding = "30px";
+  receiptBox.style.borderRadius = "20px";
+  receiptBox.style.width = "100%";
+  receiptBox.style.maxWidth = "600px";
+  receiptBox.style.fontFamily = "Cairo, sans-serif";
+  receiptBox.style.direction = "rtl";
+  receiptBox.style.boxShadow = "0 20px 25px -5px rgb(0 0 / 0.5)";
+
+  receiptBox.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 15px; margin-bottom: 20px;">
       <div>
-        <h1 style="margin: 0; font-size: 24px; font-weight: 900; color: #0f172a;">شارع الثلاثين</h1>
-        <p style="margin: 5px 0 0 0; font-size: 13px; color: #64748b;">نظام إدارة العمارة والشراكة الهندسية</p>
+        <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #0f172a;">شارع الثلاثين</h1>
+        <p style="margin: 3px 0 0 0; font-size: 12px; color: #64748b;">نظام إدارة العمارة والشراكة</p>
       </div>
-      <div style="width: 50px; height: 50px; background: #0f172a; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900;">٣٠</div>
+      <div style="width: 45px; height: 45px; background: #0f172a; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900;">٣٠</div>
     </div>
     
-    <div style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between;">
+    <div style="background: #f8fafc; padding: 12px; border-radius: 10px; margin-bottom: 15px; display: flex; justify-content: space-between;">
       <div>
-        <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b;">رقم الفاتورة</p>
-        <h3 style="margin: 0; font-size: 16px;">#${inv.id}</h3>
+        <p style="margin: 0 0 3px 0; font-size: 11px; color: #64748b;">رقم الفاتورة</p>
+        <h3 style="margin: 0; font-size: 15px;">#${inv.id}</h3>
       </div>
       <div>
-        <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b;">تاريخ الإصدار</p>
-        <h3 style="margin: 0; font-size: 16px;">${inv.date || '-'}</h3>
+        <p style="margin: 0 0 3px 0; font-size: 11px; color: #64748b;">تاريخ الإصدار</p>
+        <h3 style="margin: 0; font-size: 15px;">${inv.date || '-'}</h3>
       </div>
     </div>
 
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
       <tr style="background: #0f172a; color: white;">
-        <th style="padding: 12px; text-align: right; border-radius: 0 8px 8px 0;">بيان المصروف</th>
-        <th style="padding: 12px; text-align: center;">المستلم</th>
-        <th style="padding: 12px; text-align: left; border-radius: 8px 0 0 8px;">المبلغ</th>
+        <th style="padding: 10px; text-align: right; border-radius: 0 6px 6px 0; font-size: 13px;">بيان المصروف</th>
+        <th style="padding: 10px; text-align: center; font-size: 13px;">المستلم</th>
+        <th style="padding: 10px; text-align: left; border-radius: 6px 0 0 6px; font-size: 13px;">المبلغ</th>
       </tr>
       <tr>
-        <td style="padding: 15px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${inv.reason}</td>
-        <td style="padding: 15px; border-bottom: 1px solid #e2e8f0; text-align: center;">${inv.recipient}</td>
-        <td style="padding: 15px; border-bottom: 1px solid #e2e8f0; text-align: left; font-weight: 900; color: #0f172a;">${Number(inv.amount).toLocaleString()} $</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold; font-size: 14px;">${inv.reason}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 14px;">${inv.recipient}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-weight: 900; color: #0f172a; font-size: 14px;">${Number(inv.amount).toLocaleString()} $</td>
       </tr>
     </table>
 
-    <div style="text-align: center; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
-      <p style="font-size: 12px; color: #94a3b8; margin: 0;">تم إستخراج هذا الإيصال إلكترونياً من نظام إدارة مشروع شارع الثلاثين</p>
+    <div style="text-align: center; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+      <p style="font-size: 11px; color: #94a3b8; margin: 0;">إيصال إلكتروني صادر من نظام شارع الثلاثين</p>
     </div>
   `;
 
-  document.body.appendChild(pdfElement);
-  
-  setTimeout(() => {
-    html2pdf().from(pdfElement).set({
-      margin: 10,
-      filename: 'Invoice-' + inv.id + '.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).save().then(() => {
-      document.body.removeChild(pdfElement);
-    });
-  }, 500);
+  let actionsDiv = document.createElement("div");
+  actionsDiv.className = "no-print";
+  actionsDiv.style.display = "flex";
+  actionsDiv.style.gap = "10px";
+  actionsDiv.style.marginTop = "15px";
+  actionsDiv.style.width = "100%";
+  actionsDiv.style.maxWidth = "600px";
+
+  let printBtn = document.createElement("button");
+  printBtn.innerText = "🖨️ طباعة / حفظ كـ PDF";
+  printBtn.style.flex = "1";
+  printBtn.style.background = "#2563eb";
+  printBtn.style.color = "white";
+  printBtn.style.padding = "12px";
+  printBtn.style.borderRadius = "12px";
+  printBtn.style.fontWeight = "bold";
+  printBtn.style.border = "none";
+  printBtn.onclick = () => {
+    window.print();
+  };
+
+  let closeBtn = document.createElement("button");
+  closeBtn.innerText = "✕ إغلاق";
+  closeBtn.style.width = "100px";
+  closeBtn.style.background = "#dc2626";
+  closeBtn.style.color = "white";
+  closeBtn.style.padding = "12px";
+  closeBtn.style.borderRadius = "12px";
+  closeBtn.style.fontWeight = "bold";
+  closeBtn.style.border = "none";
+  closeBtn.onclick = () => {
+    document.body.removeChild(modalOverlay);
+  };
+
+  actionsDiv.appendChild(printBtn);
+  actionsDiv.appendChild(closeBtn);
+
+  modalOverlay.appendChild(receiptBox);
+  modalOverlay.appendChild(actionsDiv);
+  document.body.appendChild(modalOverlay);
 }
 </script>
 
