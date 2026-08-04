@@ -148,36 +148,33 @@ button { transition: .2s; }
 
 <script>
 const SUPABASE_URL = "https://qbloydgclxpeysonubxv.supabase.co";
-// سنستبدل المفتاح الوهمي بمفتاح عام افتراضي يمنع خطأ الـ API Key ويعتمد على الاتصال الحقيقي للبيانات
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFibG95ZGdjbHhwZXlzb251Ynh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTc0MjcwODAsImV4cCI6MjAzMzAwMzA4MH0.placeholder";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFibG95ZGdjbHhwZXlzb251Ynh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NTU2MTcsImV4cCI6MjEwMTQzMTYxN30.aSrrkichA_pRcvlqKeJ7m-oiyFhWO3xqM5JNlIrV4qA";
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// جدول المستخدمين المحلي الموثوق لتجنب أي مشاكل اتصال
-const LOCAL_USERS = [
-  { username: "admin", password: "Admin@2026", role: "admin", display_name: "مدير النظام" },
-  { username: "accountant", password: "Acc#9988", role: "accountant", display_name: "المحاسب" },
-  { username: "amir", password: "Amir$111", role: "partner", display_name: "أمير" },
-  { username: "sharif", password: "Sharif$222", role: "partner", display_name: "شريف" },
-  { username: "lawrence", password: "Lawrence$333", role: "partner", display_name: "لورنس" },
-  { username: "sadam", password: "Sadam$444", role: "partner", display_name: "صدام" },
-  { username: "mesaf", password: "Mesaf$555", role: "partner", display_name: "مصعب" }
-];
 
 let currentUser = null;
 
-document.getElementById("loginForm").addEventListener("submit", e => {
+document.getElementById("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
   let usernameInput = document.getElementById("loginUsername").value.trim().toLowerCase();
   let passwordInput = document.getElementById("loginPassword").value.trim();
 
-  let foundUser = LOCAL_USERS.find(u => u.username === usernameInput && u.password === passwordInput);
+  let { data, error } = await db
+    .from("users")
+    .select("*")
+    .eq("username", usernameInput)
+    .maybeSingle();
 
-  if (!foundUser) {
+  if (error) {
+    alert("خطأ في الاتصال بقاعدة البيانات: " + error.message);
+    return;
+  }
+
+  if (!data || data.password !== passwordInput) {
     alert("اسم المستخدم أو كلمة المرور غير صحيحة");
     return;
   }
 
-  currentUser = foundUser;
+  currentUser = data;
 
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
@@ -185,7 +182,7 @@ document.getElementById("loginForm").addEventListener("submit", e => {
   let roleNames = {
     admin: "👑 مدير النظام",
     accountant: "💼 المحاسب",
-    partner: "🤝 شريك: " + currentUser.display_name
+    partner: "🤝 شريك: " + data.display_name
   };
 
   document.getElementById("roleText").innerText = roleNames[currentUser.role] || "مستخدم";
@@ -338,6 +335,12 @@ async function downloadPDF(id) {
 
   html2pdf().from(pdfElement).save("Invoice-" + inv.id + ".pdf");
 }
+
+db.channel("system-sync")
+  .on("postgres_changes", { event: "*", schema: "public" }, () => {
+    loadData();
+  })
+  .subscribe();
 </script>
 
 </body>
