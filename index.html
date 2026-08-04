@@ -33,7 +33,6 @@ button { transition: .2s; }
 <div id="loginScreen" class="fixed inset-0 bg-slate-950 flex items-center justify-center p-5 z-50">
   <div class="card w-full max-w-md p-8">
     <div class="text-center mb-7">
-      <img src="image.png" class="w-24 h-24 mx-auto object-contain rounded-xl mb-4" onerror="this.src='https://via.placeholder.com/96?text=Logo'">
       <h1 class="text-2xl font-black text-slate-900">شارع الثلاثين</h1>
       <p class="text-sm text-slate-500">نظام إدارة العمارة والشراكة</p>
     </div>
@@ -41,7 +40,7 @@ button { transition: .2s; }
     <form id="loginForm" class="space-y-4">
       <div>
         <label class="text-sm font-bold">اسم المستخدم</label>
-        <input id="loginUsername" type="text" placeholder="أدخل اسم المستخدم (مثال: admin أو amir)" class="w-full mt-1 p-3 border rounded-xl bg-white" required>
+        <input id="loginUsername" type="text" placeholder="مثال: admin أو amir" class="w-full mt-1 p-3 border rounded-xl bg-white" required>
       </div>
 
       <div>
@@ -148,26 +147,30 @@ button { transition: .2s; }
 </div>
 
 <script>
-// إعدادات Supabase
 const SUPABASE_URL = "https://qbloydgclxpeysonubxv.supabase.co";
 const SUPABASE_KEY = "Sb_publishable_SeC6RpytJXwvDhJ7Hr5InQ_Pfx9SrsI";
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 
-// التحقق من تسجيل الدخول عبر قاعدة البيانات
 document.getElementById("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
   let usernameInput = document.getElementById("loginUsername").value.trim().toLowerCase();
   let passwordInput = document.getElementById("loginPassword").value.trim();
 
+  // جلب المستخدم من قاعدة البيانات
   let { data, error } = await db
     .from("users")
     .select("*")
     .eq("username", usernameInput)
-    .single();
+    .maybeSingle();
 
-  if (error || !data || data.password !== passwordInput) {
+  if (error) {
+    alert("خطأ في الاتصال بقاعدة البيانات: " + error.message);
+    return;
+  }
+
+  if (!data || data.password !== passwordInput) {
     alert("اسم المستخدم أو كلمة المرور غير صحيحة");
     return;
   }
@@ -185,7 +188,6 @@ document.getElementById("loginForm").addEventListener("submit", async e => {
 
   document.getElementById("roleText").innerText = roleNames[currentUser.role] || "مستخدم";
 
-  // إظهار لوحة التحكم للمدير والمحاسب فقط
   if (currentUser.role === "admin" || currentUser.role === "accountant") {
     document.getElementById("adminPanel").classList.remove("hidden");
   } else {
@@ -199,7 +201,6 @@ function logout() {
   location.reload();
 }
 
-// تحميل البيانات من Supabase
 async function loadData() {
   try {
     let project = await db.from("project_info").select("*").limit(1).single();
@@ -254,7 +255,6 @@ async function loadData() {
   }
 }
 
-// إضافة مصروف جديد
 document.getElementById("expenseForm").addEventListener("submit", async e => {
   e.preventDefault();
   
@@ -285,7 +285,6 @@ document.getElementById("expenseForm").addEventListener("submit", async e => {
   loadData();
 });
 
-// تحديث المشروع
 document.getElementById("projectForm").addEventListener("submit", async e => {
   e.preventDefault();
 
@@ -308,7 +307,6 @@ document.getElementById("projectForm").addEventListener("submit", async e => {
   loadData();
 });
 
-// تحميل فاتورة بصيغة PDF
 async function downloadPDF(id) {
   let result = await db.from("invoices").select("*").eq("id", id).single();
   if (!result.data) {
@@ -339,7 +337,6 @@ async function downloadPDF(id) {
   html2pdf().from(pdfElement).save("Invoice-" + inv.id + ".pdf");
 }
 
-// التحديث اللحظي
 db.channel("system-sync")
   .on("postgres_changes", { event: "*", schema: "public" }, () => {
     loadData();
