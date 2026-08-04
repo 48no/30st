@@ -74,7 +74,7 @@ button { transition: .2s; }
     <!-- الاحصائيات -->
     <section class="grid md:grid-cols-3 gap-5">
       <div class="card p-5">
-        <p class="text-sm text-slate-500">💰 الرصيد العام (مجموع رصيد الشركاء)</p>
+        <p class="text-sm text-slate-500">💰 الرصيد العام (مجموع المتبقي للشركاء)</p>
         <h2 id="balance" class="text-3xl font-black mt-3">0 $</h2>
       </div>
       <div class="card p-5">
@@ -100,8 +100,8 @@ button { transition: .2s; }
           <thead>
             <tr class="bg-slate-100 text-slate-700">
               <th class="p-3">اسم الشريك</th>
-              <th class="p-3">المدفوع</th>
-              <th class="p-3">المتبقي</th>
+              <th class="p-3">المدفوع (إجمالي ما دفعه)</th>
+              <th class="p-3">المتبقي (الرصيد المتاح للصرف)</th>
               <th class="p-3 admin-only">إدارة الرصيد</th>
             </tr>
           </thead>
@@ -119,7 +119,7 @@ button { transition: .2s; }
           <input id="reason" class="w-full border p-3 rounded-xl" placeholder="سبب المصروف" required>
           <input id="amount" type="number" class="w-full border p-3 rounded-xl" placeholder="المبلغ ($)" required>
           <input id="recipient" class="w-full border p-3 rounded-xl" placeholder="المستلم" required>
-          <button type="submit" class="bg-slate-950 hover:bg-slate-800 text-white w-full p-3 rounded-xl font-bold">حفظ الفاتورة وخصمها من الأرصدة</button>
+          <button type="submit" class="bg-slate-950 hover:bg-slate-800 text-white w-full p-3 rounded-xl font-bold">حفظ الفاتورة وخصمها من المتبقي</button>
         </form>
       </div>
 
@@ -207,23 +207,23 @@ function logout() {
 
 async function loadData() {
   try {
-    // 1. الشركاء وحساب الرصيد العام تلقائياً من مجموع المدفوع للشركاء
+    // 1. الشركاء وحساب الرصيد العام من مجموع "المتبقي" للشركاء
     let partnersData = await db.from("partners").select("*").order("id");
     let partnersContainer = document.getElementById("partners");
     partnersContainer.innerHTML = "";
     
-    let totalBalance = 0;
+    let totalRemainingBalance = 0;
     let partnersList = partnersData.data || [];
     let isAdminOrAcc = currentUser && (currentUser.role === 'admin' || currentUser.role === 'accountant');
 
     if (partnersList.length > 0) {
       partnersList.forEach(p => {
-        totalBalance += Number(p.paid || 0);
-        let addBalanceBtn = isAdminOrAcc ? `<button onclick="addPartnerBalance(${p.id}, '${p.name}')" class="bg-slate-950 hover:bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold">إضافة رصيد</button>` : '';
+        totalRemainingBalance += Number(p.remaining || 0);
+        let addBalanceBtn = isAdminOrAcc ? `<button onclick="addPartnerBalance(${p.id}, '${p.name}')" class="bg-slate-950 hover:bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold">إضافة للمتبقي</button>` : '';
         partnersContainer.innerHTML += `
           <tr class="border-b">
             <td class="p-3 font-bold">${p.name}</td>
-            <td class="p-3">${Number(p.paid || 0).toLocaleString()} $</td>
+            <td class="p-3 font-semibold text-slate-700">${Number(p.paid || 0).toLocaleString()} $</td>
             <td class="p-3 text-red-600 font-bold">${Number(p.remaining || 0).toLocaleString()} $</td>
             ${isAdminOrAcc ? `<td class="p-3">${addBalanceBtn}</td>` : ''}
           </tr>`;
@@ -232,8 +232,8 @@ async function loadData() {
       partnersContainer.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">لا يوجد شركاء مسجلين</td></tr>`;
     }
 
-    // عرض الرصيد العام كمجموع أرصدة الشركاء
-    document.getElementById("balance").innerText = totalBalance.toLocaleString() + " $";
+    // عرض الرصيد العام كمجموع المتبقي للشركاء
+    document.getElementById("balance").innerText = totalRemainingBalance.toLocaleString() + " $";
 
     // 2. المشروع
     let project = await db.from("project_info").select("*").limit(1).single();
@@ -274,28 +274,28 @@ async function loadData() {
   }
 }
 
-// إضافة رصيد لشريك محدد
+// إضافة رصيد (للمتبقي) لشريك محدد
 async function addPartnerBalance(id, name) {
-  let val = prompt("أدخل المبلغ المراد إضافته إلى مدفوعات الشريك " + name + ":");
+  let val = prompt("أدخل المبلغ المراد إضافته إلى رصيد المتبقي للشريك " + name + ":");
   if (!val || isNaN(val)) return;
   let addAmount = Number(val);
 
   let partnerRes = await db.from("partners").select("*").eq("id", id).single();
   if (!partnerRes.data) return;
 
-  let newPaid = Number(partnerRes.data.paid) + addAmount;
-  let res = await db.from("partners").update({ paid: newPaid }).eq("id", id);
+  let newRemaining = Number(partnerRes.data.remaining) + addAmount;
+  let res = await db.from("partners").update({ remaining: newRemaining }).eq("id", id);
   
   if (res.error) {
     alert("خطأ: " + res.error.message);
     return;
   }
 
-  alert("تمت إضافة الرصيد بنجاح وتحديث الرصيد العام!");
+  alert("تمت إضافة المبلغ إلى رصيد المتبقي بنجاح!");
   loadData();
 }
 
-// إضافة مصروف وتقسيم الخصم بالتساوي على المدفوع لكل الشركاء
+// إضافة مصروف وخصمه بالتساوي من "المتبقي" لكل الشركاء
 document.getElementById("expenseForm").addEventListener("submit", async e => {
   e.preventDefault();
   let reason = document.getElementById("reason").value;
@@ -310,23 +310,23 @@ document.getElementById("expenseForm").addEventListener("submit", async e => {
     return;
   }
 
-  // 2. خصم المبلغ بالتساوي على الشركاء من خانة المدفوع
+  // 2. خصم المبلغ بالتساوي من "المتبقي" للشركاء
   let partnersRes = await db.from("partners").select("*");
   let partners = partnersRes.data || [];
   if (partners.length > 0) {
     let splitAmount = amount / partners.length;
     for (let p of partners) {
-      let updatedPaid = Number(p.paid) - splitAmount;
-      await db.from("partners").update({ paid: updatedPaid }).eq("id", p.id);
+      let updatedRemaining = Number(p.remaining) - splitAmount;
+      await db.from("partners").update({ remaining: updatedRemaining }).eq("id", p.id);
     }
   }
 
-  alert("تم حفظ الفاتورة وخصم القيمة بالتساوي من أرصدة الشركاء والرصيد العام بنجاح!");
+  alert("تم حفظ الفاتورة وخصم القيمة بالتساوي من المتبقي والرصيد العام بنجاح!");
   document.getElementById("expenseForm").reset();
   loadData();
 });
 
-// تحديث نسبة الإنجاز فقط (المخطط ثابت)
+// تحديث نسبة الإنجاز فقط
 document.getElementById("projectForm").addEventListener("submit", async e => {
   e.preventDefault();
   let progress = Number(document.getElementById("projectProgress").value);
@@ -342,9 +342,9 @@ document.getElementById("projectForm").addEventListener("submit", async e => {
   loadData();
 });
 
-// حذف فاتورة وإرجاع قيمتها للأرصدة بالتساوي
+// حذف فاتورة وإرجاع قيمتها لـ "المتبقي" بالتساوي
 async function deleteInvoice(id, amount) {
-  if (!confirm("هل أنت متأكد من حذف هذه الفاتورة؟ سيتم إعادة المبلغ لأرصدة الشركاء.")) return;
+  if (!confirm("هل أنت متأكد من حذف هذه الفاتورة؟ سيتم إعادة المبلغ إلى رصيد المتبقي للشركاء.")) return;
   
   let res = await db.from("invoices").delete().eq("id", id);
   if (res.error) {
@@ -357,8 +357,8 @@ async function deleteInvoice(id, amount) {
   if (partners.length > 0) {
     let refundAmount = Number(amount) / partners.length;
     for (let p of partners) {
-      let updatedPaid = Number(p.paid) + refundAmount;
-      await db.from("partners").update({ paid: updatedPaid }).eq("id", p.id);
+      let updatedRemaining = Number(p.remaining) + refundAmount;
+      await db.from("partners").update({ remaining: updatedRemaining }).eq("id", p.id);
     }
   }
 
