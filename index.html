@@ -33,6 +33,7 @@ button { transition: .2s; }
 <div id="loginScreen" class="fixed inset-0 bg-slate-950 flex items-center justify-center p-5 z-50">
   <div class="card w-full max-w-md p-8">
     <div class="text-center mb-7">
+      <div class="w-14 h-14 bg-slate-950 text-white rounded-2xl mx-auto flex items-center justify-center font-black text-2xl mb-3">٣٠</div>
       <h1 class="text-2xl font-black text-slate-900">شارع الثلاثين</h1>
       <p class="text-sm text-slate-500">نظام إدارة العمارة والشراكة</p>
     </div>
@@ -40,7 +41,7 @@ button { transition: .2s; }
     <form id="loginForm" class="space-y-4">
       <div>
         <label class="text-sm font-bold">اسم المستخدم</label>
-        <input id="loginUsername" type="text" placeholder="مثال: admin أو amir" class="w-full mt-1 p-3 border rounded-xl bg-white" required>
+        <input id="loginUsername" type="text" placeholder="مدير / محاسب / شريك" class="w-full mt-1 p-3 border rounded-xl bg-white" required>
       </div>
 
       <div>
@@ -57,9 +58,12 @@ button { transition: .2s; }
 <div id="app" class="hidden">
   <header class="bg-slate-950 text-white sticky top-0 z-40 shadow">
     <div class="max-w-7xl mx-auto p-4 flex justify-between items-center">
-      <div>
-        <h1 class="font-black text-lg">شارع الثلاثين</h1>
-        <span id="roleText" class="bg-slate-700 px-3 py-1 rounded-full text-xs"></span>
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-white text-slate-950 rounded-xl flex items-center justify-center font-black text-lg">٣٠</div>
+        <div>
+          <h1 class="font-black text-lg">شارع الثلاثين</h1>
+          <span id="roleText" class="bg-slate-800 px-3 py-0.5 rounded-full text-xs"></span>
+        </div>
       </div>
       <button type="button" onclick="logout()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-sm font-bold">خروج</button>
     </div>
@@ -82,14 +86,14 @@ button { transition: .2s; }
         </div>
       </div>
       <div class="card p-5">
-        <p class="text-sm text-slate-500">🗺️ المخطط الهندسي</p>
-        <a id="blueprint" href="#" target="_blank" class="block mt-4 bg-slate-950 hover:bg-slate-800 text-white text-center p-3 rounded-xl font-bold">فتح المخطط</a>
+        <p class="text-sm text-slate-500">🗺️ المخطط الهندسي وصور البناء</p>
+        <a id="blueprint" href="#" target="_blank" class="block mt-4 bg-slate-950 hover:bg-slate-800 text-white text-center p-3 rounded-xl font-bold">عرض المخطط والصور</a>
       </div>
     </section>
 
     <!-- الشركاء -->
     <section class="card p-5">
-      <h2 class="font-black mb-5">👥 أرصدة الشركاء</h2>
+      <h2 class="font-black mb-5">👥 أرصدة الشركاء (من الداتا)</h2>
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-right">
           <thead>
@@ -97,6 +101,7 @@ button { transition: .2s; }
               <th class="p-3">الاسم</th>
               <th class="p-3">المدفوع</th>
               <th class="p-3">المتبقي</th>
+              <th class="p-3 admin-only">إدارة الشريك</th>
             </tr>
           </thead>
           <tbody id="partners"></tbody>
@@ -104,30 +109,46 @@ button { transition: .2s; }
       </div>
     </section>
 
-    <!-- لوحة التحكم -->
-    <section id="adminPanel" class="hidden grid md:grid-cols-2 gap-5">
-      <div class="card p-5">
-        <h2 class="font-black mb-4">🧾 إضافة مصروف</h2>
-        <form id="expenseForm" class="space-y-3">
-          <input id="reason" class="w-full border p-3 rounded-xl" placeholder="سبب المصروف" required>
-          <input id="amount" type="number" class="w-full border p-3 rounded-xl" placeholder="المبلغ" required>
-          <input id="recipient" class="w-full border p-3 rounded-xl" placeholder="المستلم" required>
-          <button type="submit" class="bg-slate-950 hover:bg-slate-800 text-white w-full p-3 rounded-xl font-bold">حفظ الفاتورة</button>
-        </form>
+    <!-- لوحة التحكم (للمدير والمحاسب فقط) -->
+    <section id="adminPanel" class="hidden space-y-5">
+      <div class="grid md:grid-cols-2 gap-5">
+        <!-- إضافة مصروف -->
+        <div class="card p-5">
+          <h2 class="font-black mb-4">🧾 إضافة مصروف جديد</h2>
+          <form id="expenseForm" class="space-y-3">
+            <input id="reason" class="w-full border p-3 rounded-xl" placeholder="سبب المصروف" required>
+            <input id="amount" type="number" class="w-full border p-3 rounded-xl" placeholder="المبلغ ($)" required>
+            <input id="recipient" class="w-full border p-3 rounded-xl" placeholder="المستلم" required>
+            <button type="submit" class="bg-slate-950 hover:bg-slate-800 text-white w-full p-3 rounded-xl font-bold">حفظ الفاتورة وتحديث الرصيد</button>
+          </form>
+        </div>
+
+        <!-- تحديث المشروع والمخطط -->
+        <div class="card p-5">
+          <h2 class="font-black mb-4">🏗️ تحديث بيانات المشروع والمخطط</h2>
+          <form id="projectForm" class="space-y-3">
+            <input id="projectProgress" type="number" min="0" max="100" class="w-full border p-3 rounded-xl" placeholder="نسبة الإنجاز الجديدة (0-100)" required>
+            <input id="projectImage" class="w-full border p-3 rounded-xl" placeholder="رابط المخطط الهندسي أو صور البناء الجديدة" required>
+            <button type="submit" class="bg-slate-700 hover:bg-slate-800 text-white w-full p-3 rounded-xl font-bold">تحديث نسبة البناء ورابط المخطط</button>
+          </form>
+        </div>
       </div>
+
+      <!-- إضافة شريك جديد -->
       <div class="card p-5">
-        <h2 class="font-black mb-4">🏗️ تحديث المشروع</h2>
-        <form id="projectForm" class="space-y-3">
-          <input id="projectProgress" type="number" min="0" max="100" class="w-full border p-3 rounded-xl" placeholder="نسبة الإنجاز (0-100)" required>
-          <input id="projectImage" class="w-full border p-3 rounded-xl" placeholder="رابط المخطط الهندسي" required>
-          <button type="submit" class="bg-slate-700 hover:bg-slate-800 text-white w-full p-3 rounded-xl font-bold">تحديث المشروع</button>
+        <h2 class="font-black mb-4">➕ إضافة شريك جديد للقاعدة</h2>
+        <form id="partnerForm" class="grid md:grid-cols-4 gap-3">
+          <input id="partnerName" class="border p-3 rounded-xl" placeholder="اسم الشريك" required>
+          <input id="partnerPaid" type="number" class="border p-3 rounded-xl" placeholder="المبلغ المدفوع ($)" required>
+          <input id="partnerRemaining" type="number" class="border p-3 rounded-xl" placeholder="المبلغ المتبقي ($)" required>
+          <button type="submit" class="bg-slate-950 hover:bg-slate-800 text-white p-3 rounded-xl font-bold">إضافة الشريك</button>
         </form>
       </div>
     </section>
 
     <!-- الفواتير -->
     <section class="card p-5">
-      <h2 class="font-black mb-5">📜 سجل الفواتير</h2>
+      <h2 class="font-black mb-5">📜 سجل الفواتير والمصروفات</h2>
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-right">
           <thead>
@@ -136,7 +157,8 @@ button { transition: .2s; }
               <th class="p-3">التاريخ</th>
               <th class="p-3">السبب</th>
               <th class="p-3">المبلغ</th>
-              <th class="p-3">PDF</th>
+              <th class="p-3">المستلم</th>
+              <th class="p-3">الإجراءات</th>
             </tr>
           </thead>
           <tbody id="invoices"></tbody>
@@ -155,7 +177,7 @@ let currentUser = null;
 
 document.getElementById("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
-  let usernameInput = document.getElementById("loginUsername").value.trim().toLowerCase();
+  let usernameInput = document.getElementById("loginUsername").value.trim();
   let passwordInput = document.getElementById("loginPassword").value.trim();
 
   let { data, error } = await db
@@ -164,33 +186,30 @@ document.getElementById("loginForm").addEventListener("submit", async e => {
     .eq("username", usernameInput)
     .maybeSingle();
 
-  if (error) {
-    alert("خطأ في الاتصال بقاعدة البيانات: " + error.message);
-    return;
-  }
-
-  if (!data || data.password !== passwordInput) {
+  if (error || !data || data.password !== passwordInput) {
     alert("اسم المستخدم أو كلمة المرور غير صحيحة");
     return;
   }
 
   currentUser = data;
-
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
 
   let roleNames = {
     admin: "👑 مدير النظام",
     accountant: "💼 المحاسب",
-    partner: "🤝 شريك: " + data.display_name
+    partner: "🤝 شريك المشروع"
   };
 
   document.getElementById("roleText").innerText = roleNames[currentUser.role] || "مستخدم";
 
+  // إظهار لوحة التحكم للمدير والمحاسب
   if (currentUser.role === "admin" || currentUser.role === "accountant") {
     document.getElementById("adminPanel").classList.remove("hidden");
+    document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
   } else {
     document.getElementById("adminPanel").classList.add("hidden");
+    document.querySelectorAll(".admin-only").forEach(el => el.classList.add("hidden"));
   }
 
   loadData();
@@ -202,6 +221,7 @@ function logout() {
 
 async function loadData() {
   try {
+    // 1. المشروع
     let project = await db.from("project_info").select("*").limit(1).single();
     if (project.data) {
       document.getElementById("balance").innerText = Number(project.data.total_balance || 0).toLocaleString() + " $";
@@ -211,42 +231,51 @@ async function loadData() {
       document.getElementById("blueprint").href = project.data.blueprint_url || "#";
     }
 
+    // 2. الشركاء
     let partnersData = await db.from("partners").select("*").order("id");
     let partnersContainer = document.getElementById("partners");
     partnersContainer.innerHTML = "";
     
+    let isAdminOrAcc = currentUser && (currentUser.role === 'admin' || currentUser.role === 'accountant');
+
     if (partnersData.data && partnersData.data.length > 0) {
       partnersData.data.forEach(p => {
+        let actionCell = isAdminOrAcc ? `<td class="p-3"><button onclick="deletePartner(${p.id})" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-bold">حذف</button></td>` : '';
         partnersContainer.innerHTML += `
           <tr class="border-b">
             <td class="p-3 font-bold">${p.name}</td>
             <td class="p-3">${Number(p.paid || 0).toLocaleString()} $</td>
             <td class="p-3 text-red-600 font-bold">${Number(p.remaining || 0).toLocaleString()} $</td>
+            ${isAdminOrAcc ? actionCell : ''}
           </tr>`;
       });
     } else {
-      partnersContainer.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-400">لا يوجد شركاء مسجلين</td></tr>`;
+      partnersContainer.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">لا يوجد شركاء مسجلين</td></tr>`;
     }
 
+    // 3. الفواتير
     let invoicesData = await db.from("invoices").select("*").order("id", { ascending: false });
     let invoicesContainer = document.getElementById("invoices");
     invoicesContainer.innerHTML = "";
 
     if (invoicesData.data && invoicesData.data.length > 0) {
       invoicesData.data.forEach(i => {
+        let deleteBtn = isAdminOrAcc ? `<button onclick="deleteInvoice(${i.id}, ${i.amount})" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-bold ml-2">حذف</button>` : '';
         invoicesContainer.innerHTML += `
           <tr class="border-b">
-            <td class="p-3">${i.id}</td>
+            <td class="p-3 font-bold">#${i.id}</td>
             <td class="p-3">${i.date || '-'}</td>
             <td class="p-3">${i.reason}</td>
-            <td class="p-3 font-bold">${Number(i.amount || 0).toLocaleString()} $</td>
-            <td class="p-3">
-              <button type="button" onclick="downloadPDF('${i.id}')" class="bg-slate-950 hover:bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold">PDF</button>
+            <td class="p-3 font-bold text-slate-900">${Number(i.amount || 0).toLocaleString()} $</td>
+            <td class="p-3">${i.recipient || '-'}</td>
+            <td class="p-3 flex items-center">
+              <button onclick="downloadPDF(${i.id})" class="bg-slate-950 hover:bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold">PDF</button>
+              ${deleteBtn}
             </td>
           </tr>`;
       });
     } else {
-      invoicesContainer.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">لا توجد فواتير مسجلة</td></tr>`;
+      invoicesContainer.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">لا توجد فواتير مسجلة</td></tr>`;
     }
 
   } catch (err) {
@@ -254,14 +283,9 @@ async function loadData() {
   }
 }
 
+// إضافة مصروف
 document.getElementById("expenseForm").addEventListener("submit", async e => {
   e.preventDefault();
-  
-  if (currentUser && currentUser.role === 'partner') {
-    alert("عذراً، الشركاء ليس لديهم صلاحية إضافة مصروفات.");
-    return;
-  }
-
   let reason = document.getElementById("reason").value;
   let amount = Number(document.getElementById("amount").value);
   let recipient = document.getElementById("recipient").value;
@@ -269,7 +293,7 @@ document.getElementById("expenseForm").addEventListener("submit", async e => {
 
   let insert = await db.from("invoices").insert([{ reason, amount, recipient, date }]);
   if (insert.error) {
-    alert("خطأ أثناء الحفظ: " + insert.error.message);
+    alert("خطأ: " + insert.error.message);
     return;
   }
 
@@ -279,68 +303,139 @@ document.getElementById("expenseForm").addEventListener("submit", async e => {
     await db.from("project_info").update({ total_balance: newBalance }).eq("id", project.data.id);
   }
 
-  alert("تم حفظ الفاتورة بنجاح وتحديث الحسابات");
+  alert("تمت إضافة الفاتورة بنجاح وتحديث الرصيد!");
   document.getElementById("expenseForm").reset();
   loadData();
 });
 
+// تحديث المشروع والمخطط
 document.getElementById("projectForm").addEventListener("submit", async e => {
   e.preventDefault();
-
-  if (currentUser && currentUser.role === 'partner') {
-    alert("عذراً، الشركاء ليس لديهم صلاحية تحديث المشروع.");
-    return;
-  }
-  
   let progress = Number(document.getElementById("projectProgress").value);
   let blueprint_url = document.getElementById("projectImage").value;
 
   let updateRes = await db.from("project_info").update({ progress, blueprint_url }).eq("id", 1);
-  
-  if(updateRes.error) {
-    alert("خطأ أثناء التحديث: " + updateRes.error.message);
+  if (updateRes.error) {
+    alert("خطأ: " + updateRes.error.message);
     return;
   }
 
-  alert("تم تحديث بيانات المشروع بنجاح");
+  alert("تم تحديث بيانات المشروع والمخطط بنجاح!");
+  document.getElementById("projectForm").reset();
   loadData();
 });
 
-async function downloadPDF(id) {
-  let result = await db.from("invoices").select("*").eq("id", id).single();
-  if (!result.data) {
-    alert("لم يتم العثور على الفاتورة");
+// إضافة شريك
+document.getElementById("partnerForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  let name = document.getElementById("partnerName").value;
+  let paid = Number(document.getElementById("partnerPaid").value);
+  let remaining = Number(document.getElementById("partnerRemaining").value);
+
+  let res = await db.from("partners").insert([{ name, paid, remaining }]);
+  if (res.error) {
+    alert("خطأ: " + res.error.message);
     return;
   }
 
-  let inv = result.data;
-  let pdfElement = document.createElement("div");
-  pdfElement.style.padding = "40px";
-  pdfElement.style.fontFamily = "Cairo";
-  pdfElement.style.direction = "rtl";
-  
-  pdfElement.innerHTML = `
-    <h1 style="color: #0f172a; margin-bottom: 5px;">شارع الثلاثين</h1>
-    <p style="color: #64748b; font-size: 14px;">نظام إدارة العمارة والشراكة</p>
-    <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
-    <h3 style="margin-bottom: 15px;">إيصال مصروفات</h3>
-    <p><strong>رقم الفاتورة:</strong> ${inv.id}</p>
-    <p><strong>التاريخ:</strong> ${inv.date}</p>
-    <p><strong>سبب المصروف:</strong> ${inv.reason}</p>
-    <p><strong>المبلغ:</strong> ${Number(inv.amount).toLocaleString()} $</p>
-    <p><strong>المستلم:</strong> ${inv.recipient}</p>
-    <br><br>
-    <p style="font-size: 12px; color: #94a3b8;">تم إصدارها إلكترونياً من نظام الإدارة</p>
-  `;
+  alert("تمت إضافة الشريك بنجاح!");
+  document.getElementById("partnerForm").reset();
+  loadData();
+});
 
-  html2pdf().from(pdfElement).save("Invoice-" + inv.id + ".pdf");
+// حذف شريك
+async function deletePartner(id) {
+  if (!confirm("هل أنت متأكد من حذف هذا الشريك؟")) return;
+  let res = await db.from("partners").delete().eq("id", id);
+  if (res.error) {
+    alert("خطأ: " + res.error.message);
+    return;
+  }
+  loadData();
 }
 
-db.channel("system-sync")
-  .on("postgres_changes", { event: "*", schema: "public" }, () => {
-    loadData();
-  })
-  .subscribe();
+// حذف فاتورة وإرجاع المبلغ للرصيد
+async function deleteInvoice(id, amount) {
+  if (!confirm("هل أنت متأكد من حذف هذه الفاتورة؟")) return;
+  let res = await db.from("invoices").delete().eq("id", id);
+  if (res.error) {
+    alert("خطأ: " + res.error.message);
+    return;
+  }
+
+  let project = await db.from("project_info").select("*").limit(1).single();
+  if (project.data) {
+    let newBalance = Number(project.data.total_balance) + Number(amount);
+    await db.from("project_info").update({ total_balance: newBalance }).eq("id", project.data.id);
+  }
+
+  loadData();
+}
+
+// تحميل PDF احترافي مع الشعار
+async function downloadPDF(id) {
+  let result = await db.from("invoices").select("*").eq("id", id).single();
+  if (!result.data) return;
+
+  let inv = result.data;
+  let pdfElement = document.createElement("div");
+  pdfElement.style.padding = "30px";
+  pdfElement.style.fontFamily = "Cairo, sans-serif";
+  pdfElement.style.direction = "rtl";
+  pdfElement.style.background = "#ffffff";
+  pdfElement.style.color = "#0f172a";
+  pdfElement.style.width = "700px";
+  
+  pdfElement.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 20px;">
+      <div>
+        <h1 style="margin: 0; font-size: 24px; font-weight: 900; color: #0f172a;">شارع الثلاثين</h1>
+        <p style="margin: 5px 0 0 0; font-size: 13px; color: #64748b;">نظام إدارة العمارة والشراكة الهندسية</p>
+      </div>
+      <div style="width: 50px; height: 50px; background: #0f172a; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900;">٣٠</div>
+    </div>
+    
+    <div style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between;">
+      <div>
+        <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b;">رقم الفاتورة</p>
+        <h3 style="margin: 0; font-size: 16px;">#${inv.id}</h3>
+      </div>
+      <div>
+        <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b;">تاريخ الإصدار</p>
+        <h3 style="margin: 0; font-size: 16px;">${inv.date || '-'}</h3>
+      </div>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+      <tr style="background: #0f172a; color: white;">
+        <th style="padding: 12px; text-align: right; border-radius: 0 8px 8px 0;">بيان المصروف</th>
+        <th style="padding: 12px; text-align: center;">المستلم</th>
+        <th style="padding: 12px; text-align: left; border-radius: 8px 0 0 8px;">المبلغ</th>
+      </tr>
+      <tr>
+        <td style="padding: 15px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${inv.reason}</td>
+        <td style="padding: 15px; border-bottom: 1px solid #e2e8f0; text-align: center;">${inv.recipient}</td>
+        <td style="padding: 15px; border-bottom: 1px solid #e2e8f0; text-align: left; font-weight: 900; color: #0f172a;">${Number(inv.amount).toLocaleString()} $</td>
+      </tr>
+    </table>
+
+    <div style="text-align: center; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+      <p style="font-size: 12px; color: #94a3b8; margin: 0;">تم إستخراج هذا الإيصال إلكترونياً من نظام إدارة مشروع شارع الثلاثين</p>
+    </div>
+  `;
+
+  document.body.appendChild(pdfElement);
+  
+  html2pdf().from(pdfElement).set({
+    margin: 10,
+    filename: 'Invoice-' + inv.id + '.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).save().then(() => {
+    document.body.removeChild(pdfElement);
+  });
+}
 </script>
 
 </body>
